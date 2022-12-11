@@ -1,7 +1,7 @@
-import sqlite3
-import pandas as pd
-import locale
 import logging
+import sqlite3
+
+import pandas as pd
 
 
 def init_db(db: str):
@@ -18,7 +18,7 @@ def init_db(db: str):
                                     notes text,
                                     measurement_method text,
                                     row_hash text,
-                                    last_update timestamp default now()
+                                    last_update timestamp
                                 );"""
         create_table(conn, create_table_file)
 
@@ -65,10 +65,10 @@ def get_critical_values(df: pd.DataFrame) -> list:
     for i in range(len(df)):
         # Check if any of the values are critical
         if (
-                systolic.iloc[i] > 140
-                or diastolic.iloc[i] > 90
-                or pulse.iloc[i] > 100
-                or pulse.iloc[i] < 60
+            systolic.iloc[i] > 140
+            or diastolic.iloc[i] > 90
+            or pulse.iloc[i] > 100
+            or pulse.iloc[i] < 60
         ):
             critical_list.append(date.iloc[i])
 
@@ -76,12 +76,10 @@ def get_critical_values(df: pd.DataFrame) -> list:
 
 
 def transform_df_date(df: pd.DataFrame) -> pd.DataFrame:
-    # Set the locale to German
-    locale.setlocale(locale.LC_ALL, "de_DE")
 
     # Create a new "date" column by combining the "Datum" and "Zeit" columns
     df["date"] = pd.to_datetime(df["Datum"] + df["Zeit"], format="%d. %B %Y%H:%M")
 
     # Drop the "Datum" and "Zeit" columns
-    df.drop(columns=["Datum", "Zeit"], inplace=True)
+    df.drop(columns=["Zeit"], inplace=True)
     return df

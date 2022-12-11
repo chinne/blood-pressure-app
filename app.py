@@ -1,26 +1,26 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
-
 import base64
 import io
+import locale
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import pandas as pd
 import plotly.express as px
-from dash import Dash, html, dash_table
-from dash import dcc, no_update
+from dash import Dash, dash_table, dcc, html, no_update
 from dash.dependencies import Input, Output, State
 
-from utils import (
-    create_connection,
-    init_db,
-    get_critical_values,
-    transform_df_date,
-)
+from utils import (create_connection, get_critical_values, init_db,
+                   transform_df_date)
 
 DB_NAME = "measurement.db"
 
-# Local Postgres
-# engine = create_engine("postgresql://postgres:postgres@localhost:5432/measurement")
+# Set the locale to German
+locale.setlocale(locale.LC_ALL, "de_DE.UTF-8")
 
 app = Dash(__name__)
 
@@ -60,7 +60,7 @@ app.layout = html.Div(
 
 
 def parse_contents(contents, filename):
-    decoded = base64.b64decode(contents.split(",")[1]).decode('utf-8')
+    decoded = base64.b64decode(contents.split(",")[1]).decode("utf-8")
     try:
         # Assume that the user uploaded a CSV file
         df = pd.read_csv(io.StringIO(decoded))
@@ -69,7 +69,9 @@ def parse_contents(contents, filename):
         db_cols = list(pd.read_sql("SELECT * FROM pulse_data", con=conn))
         df.rename(columns=dict(zip(df.columns, db_cols)), inplace=True)
         # ‘multi’: Pass multiple values in a single INSERT clause
-        df.to_sql("pulse_data", index=False, con=conn, if_exists="append", method='multi')
+        df.to_sql(
+            "pulse_data", index=False, con=conn, if_exists="append", method="multi"
+        )
         data = df.to_dict("records")
     except Exception as e:
         print(e)
@@ -124,7 +126,7 @@ def update_output(list_of_contents, list_of_names):
     if list_of_contents is not None:
         children, data = parse_contents(list_of_contents, list_of_names)
         return children, dict(), data
-    return no_update
+    return 3 * [no_update]
 
 
 @app.callback(
@@ -134,10 +136,10 @@ def update_output(list_of_contents, list_of_names):
     Input("submit-val", "n_clicks"),
 )
 def update_df(data, n_clicks):
-    df = pd.DataFrame(data)
-    if df.empty is True:
+    if data is None or len(data) == 0:
         return 2 * [no_update]
-    fig = px.line(df, x="Datum", y=df.columns[1:4])
+    df = pd.DataFrame(data)
+    fig = px.line(df, x="date", y=df.columns[1:4])
     critical_list = get_critical_values(df)
     for critical in critical_list:
         fig.add_vline(
@@ -148,4 +150,4 @@ def update_df(data, n_clicks):
 
 if __name__ == "__main__":
     init_db(DB_NAME)
-    app.run_server(debug=True)
+    app.run(port=os.environ.get("FLASK_PORT"))

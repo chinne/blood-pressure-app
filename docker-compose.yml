@@ -1,20 +1,12 @@
-# creates postgres sql database image and pgadmin4 image
-# login db: postgres:postgres hostname: postgres
-########################################################
 version: '3'
 services:
-  postgres:
-    image: postgres
-    hostname: postgres
-# if you need to connect from outside, comment this in:
+  blood-pressure-app:
+    build:
+      context: .
+    image: blood-pressure-app:$VERSION
+    container_name: blood-pressure-app
     ports:
-      - 5432:5432
+      - "${DOCKER_PORT}:8050"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: measurement
-    volumes:
-      - /Users/clinne/postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped 
-volumes:
-  postgres-data:
+      - TARGET=$TARGET
+    restart: unless-stopped

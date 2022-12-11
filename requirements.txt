@@ -1,5 +1,4 @@
 dash
 pandas
 sqlalchemy
-# optional: In case a postgresql is used
-# psycopg2
+python-dotenv
