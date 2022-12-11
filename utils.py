@@ -1,26 +1,28 @@
 import sqlite3
 import pandas as pd
 import locale
+import logging
 
 
 def init_db(db: str):
+    # Create a connection to the database
     conn = create_connection(db)
-    # create tables
+
+    # Create the "pulse_data" table if it doesn't exist
     if conn is not None:
-        # create projects table
-        # create_table_file = f'"""{open("create_table.sql", "r").read()}"""'
         create_table_file = """CREATE TABLE IF NOT EXISTS pulse_data (
-                    date timestamp,
-                    systolic integer,
-                    diastolic integer,
-                    pulse integer,
-                    notes text,
-                    measurement_method text,
-                    row_hash text,
-                    last_update timestamp
-                    );"""
+                                    date timestamp,
+                                    systolic integer,
+                                    diastolic integer,
+                                    pulse integer,
+                                    notes text,
+                                    measurement_method text,
+                                    row_hash text,
+                                    last_update timestamp default now()
+                                );"""
         create_table(conn, create_table_file)
-        return conn
+
+    return conn
 
 
 def create_connection(db_file: str):
@@ -34,7 +36,7 @@ def create_connection(db_file: str):
         conn = sqlite3.connect(db_file)
         return conn
     except sqlite3.Error as e:
-        print(e)
+        logging.error(e)
     return conn
 
 
@@ -48,24 +50,38 @@ def create_table(conn, create_table_sql: str):
         c = conn.cursor()
         c.execute(create_table_sql)
     except sqlite3.Error as e:
-        print(e)
+        logging.error(e)
 
 
 def get_critical_values(df: pd.DataFrame) -> list:
     critical_list = []
-    for i, row in df.iterrows():
+    # Get the columns that we want to check
+    systolic = df["systolic"]
+    diastolic = df["diastolic"]
+    pulse = df["pulse"]
+    date = df["date"]
+
+    # Iterate over the rows of the DataFrame
+    for i in range(len(df)):
+        # Check if any of the values are critical
         if (
-            row.iloc[1] > 140
-            or row.iloc[2] > 90
-            or row.iloc[3] > 100
-            or row.iloc[3] < 60
+                systolic.iloc[i] > 140
+                or diastolic.iloc[i] > 90
+                or pulse.iloc[i] > 100
+                or pulse.iloc[i] < 60
         ):
-            critical_list.append(row["Datum"])
+            critical_list.append(date.iloc[i])
+
     return critical_list
 
 
 def transform_df_date(df: pd.DataFrame) -> pd.DataFrame:
+    # Set the locale to German
     locale.setlocale(locale.LC_ALL, "de_DE")
-    df["Datum"] = pd.to_datetime(df["Datum"] + df["Zeit"], format="%d. %B %Y%H:%M")
-    df.drop(columns="Zeit", inplace=True)
+
+    # Create a new "date" column by combining the "Datum" and "Zeit" columns
+    df["date"] = pd.to_datetime(df["Datum"] + df["Zeit"], format="%d. %B %Y%H:%M")
+
+    # Drop the "Datum" and "Zeit" columns
+    df.drop(columns=["Datum", "Zeit"], inplace=True)
     return df

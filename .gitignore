@@ -2,3 +2,4 @@ venv
 measurement.db
 
 __pycache__
+.idea

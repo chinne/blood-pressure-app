@@ -1,21 +1,18 @@
 # Run this app with `python app.py` and
 # visit http://127.0.0.1:8050/ in your web browser.
 
-from logging import critical
-from dash import Dash, html, dcc, dash_table
-import plotly.express as px
-import plotly.graph_objs as go
-import pandas as pd
-from dash import dcc, no_update
-from dash.dependencies import Input, Output, State
 import base64
 import io
-from sqlalchemy import create_engine
-import locale
+
+import pandas as pd
+import plotly.express as px
+from dash import Dash, html, dash_table
+from dash import dcc, no_update
+from dash.dependencies import Input, Output, State
+
 from utils import (
     create_connection,
     init_db,
-    create_table,
     get_critical_values,
     transform_df_date,
 )
@@ -63,24 +60,20 @@ app.layout = html.Div(
 
 
 def parse_contents(contents, filename):
-    _, content_string = contents.split(",")
-
-    decoded = base64.b64decode(content_string)
+    decoded = base64.b64decode(contents.split(",")[1]).decode('utf-8')
     try:
         # Assume that the user uploaded a CSV file
-        df = pd.read_csv(io.StringIO(decoded.decode("utf-8")))
+        df = pd.read_csv(io.StringIO(decoded))
         df = transform_df_date(df)
         conn = create_connection(DB_NAME)
         db_cols = list(pd.read_sql("SELECT * FROM pulse_data", con=conn))
-        (
-            df.rename(columns=dict(zip(df.columns, db_cols))).to_sql(
-                "pulse_data", index=False, con=conn, if_exists="append"
-            )
-        )
+        df.rename(columns=dict(zip(df.columns, db_cols)), inplace=True)
+        # ‘multi’: Pass multiple values in a single INSERT clause
+        df.to_sql("pulse_data", index=False, con=conn, if_exists="append", method='multi')
         data = df.to_dict("records")
     except Exception as e:
         print(e)
-        return html.Div(["Es gab einen Fehler bei der Verarbeitung der Datei."])
+        return html.Div(["There was an error processing the file."])
 
     return (
         html.Div(
@@ -131,7 +124,7 @@ def update_output(list_of_contents, list_of_names):
     if list_of_contents is not None:
         children, data = parse_contents(list_of_contents, list_of_names)
         return children, dict(), data
-    return 3 * [no_update]
+    return no_update
 
 
 @app.callback(
